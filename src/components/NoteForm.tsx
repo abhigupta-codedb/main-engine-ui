@@ -1,23 +1,32 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Calendar, Upload, X, Send, Plus, FileText } from 'lucide-react';
-import { noteSchema, type NoteFormData, type RecipientFormData } from '@/lib/validations';
-import { apiClient, ApiError } from '@/lib/api';
-import RecipientForm from './RecipientForm';
-import RecipientList from './RecipientList';
+import React, { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Calendar, Upload, X, Send, Plus, FileText } from "lucide-react";
+import {
+  NotesSchema,
+  type NotesFormData,
+  type RecipientFormData,
+  type ApproverFormData,
+} from "@/lib/validations";
+import { apiClient, ApiError } from "@/lib/api";
+import AddUserForm from "./AddUserForm";
+import RecipientList from "./RecipientList";
+import { title } from "process";
 
 export default function NoteForm() {
   const [recipients, setRecipients] = useState<RecipientFormData[]>([]);
   const [showRecipientForm, setShowRecipientForm] = useState(false);
+  const [approvers, setApprovers] = useState<ApproverFormData[]>([]);
+  const [showApproverForm, setShowApproverForm] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<{
-    type: 'success' | 'error';
+    type: "success" | "error";
     message: string;
   } | null>(null);
+  const [deliveryType, setDeliveryType] = useState("fixed_date");
 
   const {
     register,
@@ -26,16 +35,16 @@ export default function NoteForm() {
     setValue,
     watch,
     reset,
-  } = useForm<NoteFormData>({
-    resolver: zodResolver(noteSchema),
+  } = useForm<NotesFormData>({
+    resolver: zodResolver(NotesSchema),
   });
 
-  const watchedImage = watch('image');
+  const watchedImage = watch("image");
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setValue('image', file);
+      setValue("image", file);
       const reader = new FileReader();
       reader.onload = (e) => {
         setImagePreview(e.target?.result as string);
@@ -45,24 +54,35 @@ export default function NoteForm() {
   };
 
   const removeImage = () => {
-    setValue('image', undefined);
+    setValue("image", undefined);
     setImagePreview(null);
   };
 
   const addRecipient = (recipient: RecipientFormData) => {
+    console.log("Adding recipient:", recipient);
     setRecipients([...recipients, recipient]);
     setShowRecipientForm(false);
+  };
+
+  const addApprover = (approver: ApproverFormData) => {
+    console.log("Adding approver:", approver);
+    setApprovers([...approvers, approver]);
+    setShowApproverForm(false);
   };
 
   const removeRecipient = (index: number) => {
     setRecipients(recipients.filter((_, i) => i !== index));
   };
 
-  const onSubmit = async (data: NoteFormData) => {
+  const removeApprover = (index: number) => {
+    setApprovers(approvers.filter((_, i) => i !== index));
+  };
+
+  const onSubmit = async (data: NotesFormData) => {
     if (recipients.length === 0) {
       setSubmitStatus({
-        type: 'error',
-        message: 'Please add at least one recipient',
+        type: "error",
+        message: "Please add at least one recipient",
       });
       return;
     }
@@ -76,25 +96,28 @@ export default function NoteForm() {
         content: data.content,
         image: data.image,
         recipients: recipients,
-        scheduledDate: data.scheduledDate.toISOString(),
+        deliveryType,
+        scheduledDate: data.scheduledDate
+          ? data.scheduledDate.toISOString()
+          : null,
       };
 
       const result = await apiClient.createNote(payload);
-      
+
       setSubmitStatus({
-        type: 'success',
-        message: 'Note created successfully!',
+        type: "success",
+        message: "Note created successfully!",
       });
 
       // Reset form
       reset();
       setRecipients([]);
       setImagePreview(null);
-
     } catch (error) {
       setSubmitStatus({
-        type: 'error',
-        message: error instanceof ApiError ? error.message : 'Failed to create note',
+        type: "error",
+        message:
+          error instanceof ApiError ? error.message : "Failed to create note",
       });
     } finally {
       setIsSubmitting(false);
@@ -106,13 +129,19 @@ export default function NoteForm() {
       <div className="bg-white rounded-lg shadow-lg p-6">
         <div className="flex items-center gap-3 mb-6">
           <FileText className="w-6 h-6 text-blue-600" />
-          <h1 className="text-2xl font-bold text-gray-800">Create New Note</h1>
+          <h1 className="text-2xl font-bold text-gray-800">
+            {deliveryType === "death_date" ? "Death Note" : "My Note"}
+          </h1>
         </div>
 
         {submitStatus && (
-          <div className={`p-4 rounded-md mb-6 ${
-            submitStatus.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
-          }`}>
+          <div
+            className={`p-4 rounded-md mb-6 ${
+              submitStatus.type === "success"
+                ? "bg-green-50 text-green-800 border border-green-200"
+                : "bg-red-50 text-red-800 border border-red-200"
+            }`}
+          >
             {submitStatus.message}
           </div>
         )}
@@ -124,13 +153,15 @@ export default function NoteForm() {
               Title *
             </label>
             <input
-              {...register('title')}
+              {...register("title")}
               type="text"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter note title"
             />
             {errors.title && (
-              <p className="text-red-500 text-sm mt-1">{errors.title.message}</p>
+              <p className="text-red-500 text-sm mt-1">
+                {errors.title.message}
+              </p>
             )}
           </div>
 
@@ -140,13 +171,15 @@ export default function NoteForm() {
               Content *
             </label>
             <textarea
-              {...register('content')}
+              {...register("content")}
               rows={6}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical"
               placeholder="Write your note content here..."
             />
             {errors.content && (
-              <p className="text-red-500 text-sm mt-1">{errors.content.message}</p>
+              <p className="text-red-500 text-sm mt-1">
+                {errors.content.message}
+              </p>
             )}
           </div>
 
@@ -167,10 +200,12 @@ export default function NoteForm() {
                 />
               </label>
               {watchedImage && (
-                <span className="text-sm text-gray-600">{watchedImage.name}</span>
+                <span className="text-sm text-gray-600">
+                  {watchedImage.name}
+                </span>
               )}
             </div>
-            
+
             {imagePreview && (
               <div className="mt-3 relative inline-block">
                 <img
@@ -189,24 +224,42 @@ export default function NoteForm() {
             )}
           </div>
 
-          {/* Scheduled Date */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Scheduled Date *
+              Delivery Type *
             </label>
-            <div className="relative">
-              <input
-                {...register('scheduledDate', { valueAsDate: true })}
-                type="datetime-local"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                min={new Date().toISOString().slice(0, 16)}
-              />
-              <Calendar className="absolute right-3 top-3 w-5 h-5 text-gray-400 pointer-events-none" />
-            </div>
-            {errors.scheduledDate && (
-              <p className="text-red-500 text-sm mt-1">{errors.scheduledDate.message}</p>
-            )}
+            <select
+              value={deliveryType}
+              onChange={(e) => setDeliveryType(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="fixed_date">On Fixed Date</option>
+              <option value="death_date">On Death Date</option>
+            </select>
           </div>
+
+          {/* Scheduled Date */}
+          {deliveryType === "fixed_date" && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Scheduled Date *
+              </label>
+              <div className="relative">
+                <input
+                  {...register("scheduledDate", { valueAsDate: true })}
+                  type="datetime-local"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  min={new Date().toISOString().slice(0, 16)}
+                />
+                <Calendar className="absolute right-3 top-3 w-5 h-5 text-gray-400 pointer-events-none" />
+              </div>
+              {errors.scheduledDate && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.scheduledDate.message}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Recipients Section */}
           <div className="space-y-4">
@@ -225,17 +278,54 @@ export default function NoteForm() {
             </div>
 
             {showRecipientForm && (
-              <RecipientForm
+              <AddUserForm
                 onAdd={addRecipient}
                 onCancel={() => setShowRecipientForm(false)}
+                label="Add Recipient"
               />
             )}
 
             <RecipientList
               recipients={recipients}
               onRemove={removeRecipient}
+              label="Recipients"
             />
           </div>
+
+          {/* Approver Section */}
+          {deliveryType === "death_date" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-800">
+                  Add Death Approvers
+                </h3>
+                {!showApproverForm && (
+                  <button
+                    type="button"
+                    onClick={() => setShowApproverForm(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Approver
+                  </button>
+                )}
+              </div>
+
+              {showApproverForm && (
+                <AddUserForm
+                  onAdd={addApprover}
+                  onCancel={() => setShowApproverForm(false)}
+                  label="Add Approver"
+                />
+              )}
+
+              <RecipientList
+                recipients={approvers}
+                onRemove={removeApprover}
+                label="Approvers"
+              />
+            </div>
+          )}
 
           {/* Submit Button */}
           <div className="pt-6">

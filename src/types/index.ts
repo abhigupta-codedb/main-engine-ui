@@ -25,6 +25,7 @@ export interface CreateNoteRequest {
   title: string;
   content: string;
   image?: File;
-  recipients: Omit<Recipient, 'id'>[];
-  scheduledDate: string; // ISO string for API
+  recipients: Recipient[];
+  deliveryType: "fixed_date" | "death_date";
+  scheduledDate?: Date;
 }
