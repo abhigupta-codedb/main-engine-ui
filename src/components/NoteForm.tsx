@@ -13,13 +13,12 @@ import {
 import { apiClient, ApiError } from "@/lib/api";
 import AddUserForm from "./AddUserForm";
 import RecipientList from "./RecipientList";
+import Modal from "./Modal";
 import { title } from "process";
 
 export default function NoteForm() {
   const [recipients, setRecipients] = useState<RecipientFormData[]>([]);
-  const [showRecipientForm, setShowRecipientForm] = useState(false);
   const [approvers, setApprovers] = useState<ApproverFormData[]>([]);
-  const [showApproverForm, setShowApproverForm] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<{
@@ -27,6 +26,11 @@ export default function NoteForm() {
     message: string;
   } | null>(null);
   const [deliveryType, setDeliveryType] = useState("fixed_date");
+  // Modal state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalType, setModalType] = useState<"recipient" | "approver">(
+    "recipient"
+  );
 
   const {
     register,
@@ -59,15 +63,27 @@ export default function NoteForm() {
   };
 
   const addRecipient = (recipient: RecipientFormData) => {
-    console.log("Adding recipient:", recipient);
     setRecipients([...recipients, recipient]);
-    setShowRecipientForm(false);
+    setIsModalOpen(false);
   };
 
   const addApprover = (approver: ApproverFormData) => {
-    console.log("Adding approver:", approver);
     setApprovers([...approvers, approver]);
-    setShowApproverForm(false);
+    setIsModalOpen(false);
+  };
+
+  const openRecipientModal = () => {
+    setModalType("recipient");
+    setIsModalOpen(true);
+  };
+
+  const openApproverModal = () => {
+    setModalType("approver");
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
   };
 
   const removeRecipient = (index: number) => {
@@ -265,25 +281,15 @@ export default function NoteForm() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-medium text-gray-800">Recipients</h3>
-              {!showRecipientForm && (
-                <button
-                  type="button"
-                  onClick={() => setShowRecipientForm(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Recipient
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={openRecipientModal}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Add Recipient
+              </button>
             </div>
-
-            {showRecipientForm && (
-              <AddUserForm
-                onAdd={addRecipient}
-                onCancel={() => setShowRecipientForm(false)}
-                label="Add Recipient"
-              />
-            )}
 
             <RecipientList
               recipients={recipients}
@@ -299,25 +305,15 @@ export default function NoteForm() {
                 <h3 className="text-lg font-medium text-gray-800">
                   Add Death Approvers
                 </h3>
-                {!showApproverForm && (
-                  <button
-                    type="button"
-                    onClick={() => setShowApproverForm(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Approver
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={openApproverModal}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Approver
+                </button>
               </div>
-
-              {showApproverForm && (
-                <AddUserForm
-                  onAdd={addApprover}
-                  onCancel={() => setShowApproverForm(false)}
-                  label="Add Approver"
-                />
-              )}
 
               <RecipientList
                 recipients={approvers}
@@ -349,6 +345,20 @@ export default function NoteForm() {
           </div>
         </form>
       </div>
+
+      {/* Modal for Adding Users */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title={modalType === "recipient" ? "Add Recipient" : "Add Approver"}
+        size="lg"
+      >
+        <AddUserForm
+          onAdd={modalType === "recipient" ? addRecipient : addApprover}
+          onCancel={closeModal}
+          label={modalType === "recipient" ? "Add Recipient" : "Add Approver"}
+        />
+      </Modal>
     </div>
   );
 }

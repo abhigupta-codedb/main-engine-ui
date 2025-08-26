@@ -66,13 +66,13 @@ export default function AddUserForm({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
+              Email *
             </label>
             <input
               {...register("email")}
               type="email"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter email (optional)"
+              placeholder="Enter email address"
             />
             {errors.email && (
               <p className="text-red-500 text-sm mt-1">
@@ -111,6 +111,22 @@ export default function AddUserForm({
             {errors.contact_number_2 && (
               <p className="text-red-500 text-sm mt-1">
                 {errors.contact_number_2.message}
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Relationship *
+            </label>
+            <input
+              {...register("relationship")}
+              type="text"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g., Family, Friend, Colleague"
+            />
+            {errors.relationship && (
+              <p className="text-red-500 text-sm mt-1">
+                {errors.relationship.message}
               </p>
             )}
           </div>
