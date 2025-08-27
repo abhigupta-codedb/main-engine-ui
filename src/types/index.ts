@@ -1,9 +1,9 @@
 export interface Recipient {
-  id: string;
   name: string;
-  age: number;
-  contactNo: string;
-  email?: string;
+  email: string;
+  contact_number_1: string;
+  contact_number_2?: string;
+  relationship: string;
   socialMedia?: {
     platform: string;
     handle: string;
@@ -14,7 +14,7 @@ export interface Note {
   id?: string;
   title: string;
   content: string;
-  image?: File | string;
+  images?: File[] | string[];
   recipients: Recipient[];
   scheduledDate: Date;
   createdAt?: Date;
@@ -24,7 +24,7 @@ export interface Note {
 export interface CreateNoteRequest {
   title: string;
   content: string;
-  image?: File;
+  images?: File[];
   recipients: Recipient[];
   deliveryType: "fixed_date" | "death_date";
   scheduledDate?: Date;

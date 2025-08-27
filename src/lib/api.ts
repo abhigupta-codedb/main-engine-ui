@@ -19,9 +19,11 @@ export const apiClient = {
     // Add text fields
     formData.append("title", noteData.title);
     formData.append("content", noteData.content);
-    // Add image if present
-    if (noteData.image) {
-      formData.append("image", noteData.image);
+    // Add images if present
+    if (noteData.images && noteData.images.length > 0) {
+      noteData.images.forEach((image, index) => {
+        formData.append(`images`, image);
+      });
     }
     if (noteData.scheduledDate) {
       formData.append("scheduledDate", noteData.scheduledDate.toISOString());

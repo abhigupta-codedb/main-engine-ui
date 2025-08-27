@@ -14,23 +14,27 @@ import { apiClient, ApiError } from "@/lib/api";
 import AddUserForm from "./AddUserForm";
 import RecipientList from "./RecipientList";
 import Modal from "./Modal";
-import { title } from "process";
+import { UserList } from "./UserList";
 
 export default function NoteForm() {
   const [recipients, setRecipients] = useState<RecipientFormData[]>([]);
   const [approvers, setApprovers] = useState<ApproverFormData[]>([]);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const MAX_IMAGES = 2; // Change this value to 2, 10, etc. as needed
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<{
     type: "success" | "error";
     message: string;
   } | null>(null);
-  const [deliveryType, setDeliveryType] = useState("fixed_date");
+  const [deliveryType, setDeliveryType] = useState<"fixed_date" | "death_date">(
+    "fixed_date"
+  );
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState<"recipient" | "approver">(
     "recipient"
   );
+  const [isUserListModalOpen, setIsUserListModalOpen] = useState(false);
 
   const {
     register,
@@ -43,23 +47,35 @@ export default function NoteForm() {
     resolver: zodResolver(NotesSchema),
   });
 
-  const watchedImage = watch("image");
+  const watchedImages = watch("images");
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setValue("image", file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setImagePreview(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+    const files = e.target.files;
+    if (!files) return;
+    let selectedFiles = Array.from(files);
+    // Limit to MAX_IMAGES
+    if (selectedFiles.length > MAX_IMAGES) {
+      selectedFiles = selectedFiles.slice(0, MAX_IMAGES);
     }
+    setValue("images", selectedFiles);
+    const readers: Promise<string>[] = selectedFiles.map(
+      (file) =>
+        new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result as string);
+          reader.readAsDataURL(file);
+        })
+    );
+    Promise.all(readers).then(setImagePreviews);
   };
 
-  const removeImage = () => {
-    setValue("image", undefined);
-    setImagePreview(null);
+  const removeImage = (index: number) => {
+    // Remove from both previews and form value
+    const newPreviews = imagePreviews.filter((_, i) => i !== index);
+    setImagePreviews(newPreviews);
+    const currentFiles = (watchedImages as File[] | undefined) || [];
+    const newFiles = currentFiles.filter((_, i) => i !== index);
+    setValue("images", newFiles);
   };
 
   const addRecipient = (recipient: RecipientFormData) => {
@@ -86,6 +102,10 @@ export default function NoteForm() {
     setIsModalOpen(false);
   };
 
+  const closeUserListModal = () => {
+    setIsUserListModalOpen(false);
+  };
+
   const removeRecipient = (index: number) => {
     setRecipients(recipients.filter((_, i) => i !== index));
   };
@@ -110,12 +130,10 @@ export default function NoteForm() {
       const payload = {
         title: data.title,
         content: data.content,
-        image: data.image,
+        images: data.images, // array of files
         recipients: recipients,
         deliveryType,
-        scheduledDate: data.scheduledDate
-          ? data.scheduledDate.toISOString()
-          : null,
+        scheduledDate: data.scheduledDate || undefined,
       };
 
       const result = await apiClient.createNote(payload);
@@ -128,7 +146,7 @@ export default function NoteForm() {
       // Reset form
       reset();
       setRecipients([]);
-      setImagePreview(null);
+      setImagePreviews([]);
     } catch (error) {
       setSubmitStatus({
         type: "error",
@@ -199,43 +217,52 @@ export default function NoteForm() {
             )}
           </div>
 
-          {/* Image Upload */}
+          {/* Image Upload (Multiple) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Image (Optional)
+              Images (Max {MAX_IMAGES}, Optional)
             </label>
             <div className="flex items-center space-x-4">
               <label className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
                 <Upload className="w-4 h-4" />
-                <span>Choose Image</span>
+                <span>Choose Images</span>
                 <input
                   type="file"
                   accept="image/*"
+                  multiple
                   onChange={handleImageChange}
                   className="hidden"
+                  disabled={imagePreviews.length >= MAX_IMAGES}
                 />
               </label>
-              {watchedImage && (
-                <span className="text-sm text-gray-600">
-                  {watchedImage.name}
-                </span>
-              )}
+              {watchedImages &&
+                Array.isArray(watchedImages) &&
+                watchedImages.length > 0 && (
+                  <span className="text-sm text-gray-600">
+                    {watchedImages.length} image(s) selected
+                  </span>
+                )}
             </div>
 
-            {imagePreview && (
-              <div className="mt-3 relative inline-block">
-                <img
-                  src={imagePreview}
-                  alt="Preview"
-                  className="max-w-xs max-h-48 rounded-lg border"
-                />
-                <button
-                  type="button"
-                  onClick={removeImage}
-                  className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1 hover:bg-red-700"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+            {/* Previews for multiple images */}
+            {imagePreviews.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-4">
+                {imagePreviews.map((src, idx) => (
+                  <div key={idx} className="relative inline-block">
+                    <img
+                      src={src}
+                      alt={`Preview ${idx + 1}`}
+                      className="max-w-xs max-h-48 rounded-lg border"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(idx)}
+                      className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1 hover:bg-red-700"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -246,7 +273,9 @@ export default function NoteForm() {
             </label>
             <select
               value={deliveryType}
-              onChange={(e) => setDeliveryType(e.target.value)}
+              onChange={(e) =>
+                setDeliveryType(e.target.value as "fixed_date" | "death_date")
+              }
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="fixed_date">On Fixed Date</option>
@@ -281,14 +310,27 @@ export default function NoteForm() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-medium text-gray-800">Recipients</h3>
-              <button
-                type="button"
-                onClick={openRecipientModal}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                Add Recipient
-              </button>
+              <div className="flex gap-5">
+                <button
+                  type="button"
+                  onClick={openRecipientModal}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Recipient
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalType("recipient");
+                    setIsUserListModalOpen(true);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  All Recipients
+                </button>
+              </div>
             </div>
 
             <RecipientList
@@ -305,14 +347,27 @@ export default function NoteForm() {
                 <h3 className="text-lg font-medium text-gray-800">
                   Add Death Approvers
                 </h3>
-                <button
-                  type="button"
-                  onClick={openApproverModal}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Approver
-                </button>
+                <div className="flex gap-5">
+                  <button
+                    type="button"
+                    onClick={openApproverModal}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Approver
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModalType("approver");
+                      setIsUserListModalOpen(true);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    All Approvers
+                  </button>
+                </div>
               </div>
 
               <RecipientList
@@ -357,6 +412,19 @@ export default function NoteForm() {
           onAdd={modalType === "recipient" ? addRecipient : addApprover}
           onCancel={closeModal}
           label={modalType === "recipient" ? "Add Recipient" : "Add Approver"}
+        />
+      </Modal>
+      {/* Modal for Users List*/}
+      <Modal
+        isOpen={isUserListModalOpen}
+        onClose={closeUserListModal}
+        title={modalType === "recipient" ? "All Recipients" : "All Approvers"}
+        size="lg"
+      >
+        <UserList
+          users={modalType === "recipient" ? recipients : approvers}
+          addUser={modalType === "recipient" ? addRecipient : addApprover}
+          label={modalType === "recipient" ? "Recipients" : "Approvers"}
         />
       </Modal>
     </div>

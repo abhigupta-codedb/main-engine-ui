@@ -48,7 +48,7 @@ export const DeathDateNoteSchema = z.object({
 export const NotesSchema = z.object({
   title: z.string().min(1, "Title is required"),
   content: z.string().min(1, "Content is required"),
-  image: z.instanceof(File).optional(),
+  images: z.array(z.instanceof(File)).optional(),
   attachments: z.array(z.string()).optional(),
   recipientsId: z.array(z.string().min(1, "Recipient ID is required")),
   scheduledDate: z
