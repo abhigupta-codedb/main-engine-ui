@@ -158,6 +158,15 @@ export default function NoteForm() {
     }
   };
 
+  const checkEligibility = () => {
+    if (deliveryType === "death_date" && approvers.length > 1) {
+      return recipients.length > 0;
+    } else if (deliveryType === "fixed_date") {
+      return recipients.length > 0;
+    }
+    return false;
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <div className="bg-white rounded-lg shadow-lg p-6">
@@ -382,7 +391,7 @@ export default function NoteForm() {
           <div className="pt-6">
             <button
               type="submit"
-              disabled={isSubmitting || recipients.length === 0}
+              disabled={!checkEligibility()}
               className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-3 px-6 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
             >
               {isSubmitting ? (
